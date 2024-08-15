@@ -1,30 +1,22 @@
 import numpy as np
 import math
 from ansys.mapdl import core as pymapdl
-#from ansys.mapdl.core import LOG
 import matplotlib.pyplot as plt
 
-# import pyvista
-#pymapdl.change_default_ansys_path("/mnt/work/ansys_inc/v241/ansys/bin/ansys241")
-# pyvista.start_xvfb()
-
-#LOG.setLevel("DEBUG")
-#LOG.log_to_file("mylog.log")
-
-mapdl = pymapdl.launch_mapdl(jobname="axial_compression", run_location=r"C:\Users\Tristan\Nextcloud Uni\masterarbeit\tfunk_apdl\axial_compression\results")
-
-
+mapdl = pymapdl.launch_mapdl(jobname="axial_compression",
+                             run_location=r"C:\Users\Tristan\Nextcloud Uni\masterarbeit\tfunk_apdl\axial_compression\results")
 
 mapdl.units("uMKS")
 mapdl.prep7()
 
-
+# geom + mesh
 circle = mapdl.cyl4(0, 0, rad1=0.5)
 cylinder = mapdl.vext(circle, dz=1.0)
-
 mapdl.et(1, "SOLID187")
 mapdl.esize(0.1)
 mapdl.vmesh(1)
+
+# material
 mapdl.mp("EX", 1, 70000)
 mapdl.mp("NUXY", 1, 0.33)
 mapdl.tb("PLASTIC", 1, 0, 100, "MISO")
@@ -130,32 +122,27 @@ mapdl.tbpt("DEFI", 0.97, 142)
 mapdl.tbpt("DEFI", 0.98, 143)
 mapdl.tbpt("DEFI", 0.99, 144)
 
-
-mapdl.et(2, "SOLID186")
+# target plate
+mapdl.real(1)
+mapdl.n(100001, -0.75, -0.75, 1.1)
+mapdl.n(100002, 0.75, -0.75, 1.1)
+mapdl.n(100003, 0.75, 0.75, 1.1)
+mapdl.n(100004, -0.75, 0.75, 1.1)
+mapdl.et(2, 170)
 mapdl.type(2)
-block = mapdl.block(-0.75, 0.75, -0.75, 0.75, 1.001, 1.1)
-mapdl.vmesh(block)
+mapdl.tshap("QUAD")
+# Order is important, normal has to face cylinder. Doing 100001 -> 1000004 causes the normal to point away from the cylinder, causing penetration
+target = mapdl.e(100004, 100003, 100002, 100001)
 
-mapdl.nsel("s", "loc", "z", 1, 1.1)
-mapdl.esln("s")
-output = mapdl.gcgen("NEW", splitkey="SPLIT", selopt="SELECT")
-print(output)
-mapdl.esel("S", "SEC", vmin=3, vmax=5)
-mapdl.eplot(style="wireframe", line_width=3)
-mapdl.mp("EX", 2, 7000000)
-mapdl.mp("NUXY", 2, 0.33)
-#mapdl.mp("DENS", 2, 2.7e-7)
+# contact on A2 - A6
+mapdl.et(3, 174)
+mapdl.type(3)
+mapdl.asel("S", "AREA", vmin=2, vmax=6, vinc=1)
+mapdl.nsla("S", 1)
+mapdl.esurf()
+mapdl.allsel()
 
-
-mapdl.keyopt("CONT", 7, 1)
-
-
-print(mapdl.alist())
-#mapdl.slashsolu()
-mapdl.nlgeom("ON")
-
-mapdl.nsubst(100, 500, 50)
-mapdl.antype("STATIC")
+# constraints cylinder
 mapdl.asel("S", vmin=1)
 mapdl.nsla("S", 1)
 mapdl.dsym("SYMM", "Z")
@@ -164,13 +151,17 @@ mapdl.d(87, "UX", 0)
 mapdl.d(87, "UY", 0)
 mapdl.d(55, "UY", 0)
 
-
-mapdl.nsel("s", "loc", "z", 1.001, 1.1)
+# constraints target
+mapdl.nsel("S", "NODE", vmin=100001, vmax=100004)
 mapdl.d("ALL", "UX", 0)
 mapdl.d("ALL", "UY", 0)
-mapdl.d("ALL", "UZ", -0.5)
-
+mapdl.d("ALL", "UZ", -0.51)  # 0.1 gap
 mapdl.allsel()
+
+# keyopts
+mapdl.keyopt("CONT", 7, 1)
+
+# finish
 mapdl.finish()
 mapdl.run("/SOLU")
 mapdl.antype("static")
@@ -188,24 +179,6 @@ mapdl.outres("all", "all")
 output = mapdl.solve()
 print(output)
 result = mapdl.result
-result.plot_principal_nodal_stress(0, "SEQV", lighting=False, background="w", show_edges=True, text_color="k", add_text=False)
-#mapdl.open_gui()
-mapdl.post1()
-mapdl.allsel()
 
-mapdl.set(lstep="Last", sbstep="First")
-mapdl.get("L0Node", "NODE", 0, "Num", "Max")
-
-#mapdl.open_gui()
-
-with open("sim.dat", "w") as sim:
-    for i in range(1, 100):
-        mapdl.nsel("S", "Loc", "Y", "1")
-        mapdl.fsum()
-        mapdl.allsel()
-        force = mapdl.get(entity="FSUM", entnum="0", item1="ITEM", it1num="FZ")
-        displacement = mapdl.get(entity="NODE", entnum=121, item1="U", it1num="Y")
-        print(force)
-        print(displacement)
-        sim.write(str(force))
-        mapdl.set(lstep="Last", sbstep=i)
+# open gui
+mapdl.open_gui()
