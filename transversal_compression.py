@@ -3,17 +3,20 @@ import math
 from ansys.mapdl import core as pymapdl
 import matplotlib.pyplot as plt
 
-mapdl = pymapdl.launch_mapdl(jobname="transversal_compression", run_location=r"C:\Users\Tristan\Nextcloud Uni\masterarbeit\tfunk_apdl\transversal_compression\results")
+mapdl = pymapdl.launch_mapdl(jobname="transversal_compression",
+                             run_location=r"C:\Users\Tristan\Nextcloud Uni\masterarbeit\tfunk_apdl\transversal_compression\results")
 
 mapdl.units("SI")
 mapdl.prep7()
 
-circle = mapdl.cyl4(0, 0, rad1=0.5, theta1=-90, theta2=90)
+# geom + mesh
+circle = mapdl.cyl4(0, 0, rad1=0.5, theta1=0, theta2=90)
 cylinder = mapdl.vext(circle, dz=1)
-
 mapdl.et(1, "SOLID187")
 mapdl.esize(0.1)
 mapdl.vmesh(1)
+
+# material
 mapdl.mp("EX", 1, 70000)
 mapdl.mp("NUXY", 1, 0.33)
 mapdl.tb("PLASTIC", 1, 0, 100, "MISO")
@@ -119,46 +122,45 @@ mapdl.tbpt("DEFI", 0.97, 142)
 mapdl.tbpt("DEFI", 0.98, 143)
 mapdl.tbpt("DEFI", 0.99, 144)
 
-
-mapdl.esize(0.1)
-mapdl.et(2, "SOLID186")
+# target plate
+mapdl.real(1)
+mapdl.n(100001, 0.51, -0.25, -0.25)
+mapdl.n(100002, 0.51, -0.25, 1.25)
+mapdl.n(100003, 0.51, 0.75, 1.25)
+mapdl.n(100004, 0.51, 0.75, -0.25)
+mapdl.et(2, 170)
 mapdl.type(2)
-mapdl.mp("EX", 2, 7000000)
-mapdl.mp("NUXY", 2, 0.33)
-block = mapdl.block(0.51, 0.53, -0.75, 0.75, -0.25, 1.25)
-mapdl.vmesh(block)
-mapdl.eplot()
-mapdl.eplot(cpos="yz", background="w")
+mapdl.tshap("QUAD")
+mapdl.e(100001, 100002, 100003, 100004)
 
+# contact on A3 + A5
+mapdl.et(3, 174)
+mapdl.type(3)
+mapdl.asel("S", "AREA", vmin=3, vmax=5, vinc=2)
+mapdl.nsla("S", 1)
+mapdl.esurf()
+mapdl.allsel()
 
-mapdl.nsel("s", "loc", "x", 0.0, 0.53)
-mapdl.esln("s")
-output = mapdl.gcgen("NEW", featureangle=65, splitkey="SPLIT", selopt="SELECT")
-print(output)
-mapdl.esel("S", "SEC", vmin=3, vmax=6)
-mapdl.eplot(style="wireframe", line_width=3)
-
-
-# constraints
-mapdl.asel("S", vmin=4)
+# constraints cylinder
+mapdl.asel("S", "AREA", vmin=4)
+mapdl.nsla("S", 1)
 mapdl.dsym("SYMM", "X")
-mapdl.allsel()
+mapdl.asel("S", "AREA", vmin=5)
+mapdl.nsla("S", 1)
+mapdl.dsym("SYMM", "Y")
+mapdl.d(553, "UZ", 0)
 
-#mapdl.asel("S", vmin=5)
-#mapdl.dsym("SYMM", "Y")
-#mapdl.allsel()
-
-mapdl.nsel("s", "loc", "x", 0.51, 0.53)
-mapdl.d("ALL", "UX", -0.2)
-mapdl.d("ALL", "UY", 0)
+# constraints target
+mapdl.nsel("S", "NODE", vmin=100001, vmax=100004)
 mapdl.d("ALL", "UZ", 0)
-
+mapdl.d("ALL", "UY", 0)
+mapdl.d("ALL", "UX", -0.21)
 mapdl.allsel()
-mapdl.d(121, "UY", 0)
-mapdl.d(121, "UZ", 0)
 
-
+# keyopts
 mapdl.keyopt("CONT", 7, 1)
+
+# finish
 mapdl.finish()
 mapdl.run("/SOLU")
 mapdl.antype("static")
@@ -176,5 +178,6 @@ mapdl.outres("all", "all")
 output = mapdl.solve()
 print(output)
 result = mapdl.result
-result.plot_principal_nodal_stress(0, "SEQV", lighting=False, background="w", show_edges=True, text_color="k", add_text=False)
+
+# open gui
 mapdl.open_gui()
