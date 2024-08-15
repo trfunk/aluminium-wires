@@ -3,21 +3,15 @@ import math
 from ansys.mapdl import core as pymapdl
 import matplotlib.pyplot as plt
 
-# import pyvista
-# pymapdl.change_default_ansys_path("/mnt/work/ansys_inc/v241/ansys/bin/ansys241")
-# pyvista.start_xvfb()
-
-
-mapdl = pymapdl.launch_mapdl(jobname="vsweep", run_location=r"C:\Users\Tristan\Nextcloud Uni\masterarbeit\tfunk_apdl\sweep_meshed\results")
+mapdl = pymapdl.launch_mapdl(
+    jobname="vsweep", run_location=r"C:\Users\Tristan\Nextcloud Uni\masterarbeit\tfunk_apdl\sweep_meshed\results")
 
 mapdl.units("SI")
 mapdl.prep7()
 
-# create circle we drag along our path
-circle = mapdl.cyl4(0, 0, 0.5)
-
-
 # Turns out you can create b-splines longer than the 6 allowed via the bsplin() command, by picking up to 18 (?) point via the GUI tool and combining them via P51X
+
+
 def longer_bspline(keypoints):
     # We pick for the 3rd command field (name including), so we have to pass P51X to the 2nd argument in bsplin()
     mapdl.flst(3, len(keypoints), 3)
@@ -54,6 +48,10 @@ def calculate_angle(node1, node2):
     return angle
 
 
+# create circle
+circle = mapdl.cyl4(0, 0, 0.5)
+
+# create path
 k1 = mapdl.k("", 0, 0, 0)
 k2 = mapdl.k("", 0, 0, 4)
 k3 = mapdl.k("", 1, 0, 5)
@@ -69,19 +67,16 @@ kps = [k1, k2, k3, k4, k5, k6, k7, k8, k9, k10]
 
 path = longer_bspline(kps)
 
-
-# mapdl.lplot(show_bounds=True, show_keypoint_numbering=True)
+# drag circle along path to create wire
 wire = mapdl.vdrag(circle, nlp1=path)
 
-# Element Type + Mesh size for wire
+# element + mesh for wire
 mapdl.et(1, "SOLID186")
 element_size = 0.20
 mapdl.esize(element_size)
-
-# https://mapdl.docs.pyansys.com/version/stable/mapdl_commands/prep7/_autosummary/ansys.mapdl.core.Mapdl.vsweep.html
 mapdl.vsweep(1, 1, 6)
-mapdl.eplot(cpos="zx", background="w", show_edges=True, smooth_shading=True,)
-# Material Params for Wire
+
+# aterial params for the wire (Pure Al, MISO for plasticity)
 mapdl.mp("EX", 1, 70000)
 mapdl.mp("NUXY", 1, 0.33)
 mapdl.tb("PLASTIC", 1, 0, 100, "MISO")
@@ -188,67 +183,64 @@ mapdl.tbpt("DEFI", 0.98, 143)
 mapdl.tbpt("DEFI", 0.99, 144)
 
 
-
-
-
-
-# contact element top
+# working plane for toolhead
 mapdl.wplane(wn="1", xorig=0.3501, yorig=-1, zorig=1, xxax=1, yxax=-1, zxax=1, xplan=0.3501,
              yplan=1, zplan=1)  # this has the index 4 and won't clash with the coordinate systems later
 mapdl.csys("4")
 
-# tool geom
+# toolhead geom
 tool_height = 0.2
-
-# square
 # width and height are swapped because of the coordinate system
 square = mapdl.blc4(xcorner=0, ycorner=0, width=0.5, height=2)
 # triangle
-tool_k0 = mapdl.k("", 0, 0.6, 0)
+tool_k0 = mapdl.k("", 0, 0.5, 0)
 tool_k1 = mapdl.k("", tool_height, 0.85, 0)
 tool_k2 = mapdl.k("", tool_height, 1.15, 0)
-tool_k3 = mapdl.k("", 0, 1.4, 0)
+tool_k3 = mapdl.k("", 0, 1.5, 0)
 tool = mapdl.a(tool_k0, tool_k1, tool_k2, tool_k3)
 tool_slice = mapdl.asba(square, tool)
 tool = mapdl.vext(na1=tool_slice, dz=2)
-mapdl.csys("0")  # return to normal
+
+# back to original coordinate system
+mapdl.csys("0")
 mapdl.wpcsys(wn=1, kcn=0)
 
-
-# Tool is Volume 2, Mesh + Material Properties 
+# tool mesh + material
 mapdl.esize(0.25)
 mapdl.et(2, "SOLID187")
 mapdl.type(2)
-mapdl.vmesh(2) 
+mapdl.vmesh(2)
+# tungsten carbide
+mapdl.mp("EX", 2, 344000)
+mapdl.mp("NUXY", 2, 0.22)
 
-mapdl.mp("EX", 2, 7000000)
-mapdl.mp("NUXY", 2, 0.33)
-
-#mapdl.esel("S", "ENAME", vmin=187)
-#mapdl.eplot(cpos="zx", background="w", show_edges=True)
-#mapdl.esel("S", "ALL")
-
-# contact element bottom, Volume 3
-block = mapdl.block(-0.8, -2, -2, 2, -2, 6)
-mapdl.esize(0.5)
-mapdl.et(3, "SOLID187")
+# contact element bottom, element + material id/secnum/type
+mapdl.n(1000001, -0.8, -2, -2)
+mapdl.n(1000002, -0.8, -2, 6)
+mapdl.n(1000003, -0.8, 2, 6)
+mapdl.n(1000004, -0.8, 2, -2)
+mapdl.et(3, "TARGE170")
 mapdl.type(3)
-mapdl.vmesh(3)
+mapdl.secnum(4)
+mapdl.real(0)
+mapdl.mat(0)
+mapdl.tshap("QUAD")
+# Order is important, normal has to face the wire
+mapdl.e(1000004, 1000003, 1000002, 1000001)
+mapdl.eplot()
 
-mapdl.mp("EX", 3, 7000000)
-mapdl.mp("NUXY", 3, 0.33)
-
-# contact
-mapdl.nsel("s", "loc", "x", -3, 0.3501 + tool_height + 0.3)
+# contact elements for toolhead + wire
+mapdl.nsel("s", "loc", "x", -0.79, 0.3501 + tool_height + 0.3)
 mapdl.nsel("R", "loc", "z", -2, 6)
 mapdl.esln("s")
-output = mapdl.gcgen("NEW", featureangle=75, splitkey="SPLIT", selopt="SELECT")
+output = mapdl.gcgen("UPDATE", featureangle=75,
+                     splitkey="SPLIT", selopt="SELECT")
 print(output)
-mapdl.esel("S", "SEC", vmin=3, vmax=15)
-mapdl.eplot(style="wireframe", line_width=3)
+mapdl.allsel()
+
+# keyopts: automatic timestepping
 mapdl.keyopt("CONT", 7, 1)
 
-mapdl.allsel()
 
 # The SOLID185 Element is defined as a 3D tetrahedal with 8 points in total:
 #    P+------+O
@@ -287,23 +279,20 @@ for index, element in enumerate(mapdl.mesh.elem, start=1):
         continue
 
 
-#mapdl.slashsolu()
-#mapdl.nlgeom("ON")
 # constraining the bottom contact element (UX = UY = UZ = 0)
-mapdl.nsel("s", "loc", "x", -0.8, -2)
-mapdl.nsel("R", "loc", "z", -2, 6)
+mapdl.nsel("S", "NODE", vmin=1000001, vmax=1000004)
 mapdl.d("ALL", "ALL", 0)
 
 
-# constraining the top contact element (UY = UZ = 0, UX= -displacement)
+# constraining the toolhead + displacement (UY = UZ = 0, UX= -displacement)
 mapdl.nsel("s", "loc", "x", 0.35, 1)
 mapdl.nsel("R", "loc", "z", 1, 3)
 mapdl.d("ALL", "UZ", 0)
 mapdl.d("ALL", "UY", 0)
 mapdl.d("ALL", "UX", -0.6)
 
-# constrain thend areas of the wire in UZ direction
-mapdl.da(6, "UZ", 0) 
+# constrain the end areas of the wire in UZ direction
+mapdl.da(6, "UZ", 0)
 mapdl.nsel("ALL")
 mapdl.nsel("R", "loc", "z", 15, 19)
 mapdl.d("ALL", "UX", 0)
@@ -328,8 +317,4 @@ mapdl.outres("all", "all")
 # Solve
 output = mapdl.solve()
 print(output)
-result = mapdl.result
-mapdl.esel("S", "ENAME", vmin=186)
-result.plot_principal_nodal_stress(0, "SEQV", lighting=False, background="w", show_edges=True, text_color="k", add_text=False)
 mapdl.open_gui()
-# mapdl.eplot(show_bounds=True)
