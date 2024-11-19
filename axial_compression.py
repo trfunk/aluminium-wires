@@ -9,9 +9,9 @@ mapdl = pymapdl.launch_mapdl(jobname="axial_compression",
 mapdl.units("uMKS")
 mapdl.prep7()
 
-# geom + mesh
+# Define the base area of the cylinder and extrude it by dz
 circle = mapdl.cyl4(0, 0, rad1=0.5)
-cylinder = mapdl.vext(circle, dz=1.0)
+cylinder = mapdl.vext(circle, dz=1)
 mapdl.et(1, "SOLID187")
 mapdl.esize(0.1)
 mapdl.vmesh(1)
@@ -122,15 +122,20 @@ mapdl.tbpt("DEFI", 0.97, 142)
 mapdl.tbpt("DEFI", 0.98, 143)
 mapdl.tbpt("DEFI", 0.99, 144)
 
+# uncomment for anisotropic behaviour
+# mapdl.tb("HILL", 1)
+# mapdl.tbdata(1, 0.6, 0.6, 1.0, 0.7, 0.7, 0.5)
+
 # target plate
 mapdl.real(1)
-mapdl.n(100001, -0.75, -0.75, 1.1)
-mapdl.n(100002, 0.75, -0.75, 1.1)
-mapdl.n(100003, 0.75, 0.75, 1.1)
-mapdl.n(100004, -0.75, 0.75, 1.1)
+mapdl.n(100001, -0.75, -0.75, 0.6)
+mapdl.n(100002, 0.75, -0.75, 0.6)
+mapdl.n(100003, 0.75, 0.75, 0.6)
+mapdl.n(100004, -0.75, 0.75, 0.6)
 mapdl.et(2, 170)
 mapdl.type(2)
 mapdl.tshap("QUAD")
+
 # Order is important, normal has to face cylinder. Doing 100001 -> 1000004 causes the normal to point away from the cylinder, causing penetration
 target = mapdl.e(100004, 100003, 100002, 100001)
 
@@ -147,15 +152,15 @@ mapdl.asel("S", vmin=1)
 mapdl.nsla("S", 1)
 mapdl.dsym("SYMM", "Z")
 mapdl.allsel()
-mapdl.d(87, "UX", 0)
-mapdl.d(87, "UY", 0)
+mapdl.d(88, "UX", 0)
+mapdl.d(88, "UY", 0)
 mapdl.d(55, "UY", 0)
 
 # constraints target
 mapdl.nsel("S", "NODE", vmin=100001, vmax=100004)
 mapdl.d("ALL", "UX", 0)
 mapdl.d("ALL", "UY", 0)
-mapdl.d("ALL", "UZ", -0.51)  # 0.1 gap
+mapdl.d("ALL", "UZ", -0.31)  # 0.1 gap
 mapdl.allsel()
 
 # keyopts
@@ -179,6 +184,4 @@ mapdl.outres("all", "all")
 output = mapdl.solve()
 print(output)
 result = mapdl.result
-
-# open gui
 mapdl.open_gui()
