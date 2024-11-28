@@ -11,7 +11,7 @@ mapdl.prep7()
 
 # Define the base area of the cylinder and extrude it by dz
 circle = mapdl.cyl4(0, 0, rad1=0.5)
-cylinder = mapdl.vext(circle, dz=1)
+cylinder = mapdl.vext(circle, dz=0.5)
 mapdl.et(1, "SOLID187")
 mapdl.esize(0.1)
 mapdl.vmesh(1)
@@ -122,16 +122,17 @@ mapdl.tbpt("DEFI", 0.97, 142)
 mapdl.tbpt("DEFI", 0.98, 143)
 mapdl.tbpt("DEFI", 0.99, 144)
 
+
 # uncomment for anisotropic behaviour
-# mapdl.tb("HILL", 1)
-# mapdl.tbdata(1, 0.6, 0.6, 1.0, 0.7, 0.7, 0.5)
+#mapdl.tb("HILL", 1)
+#mapdl.tbdata(1, 0.7, 0.7, 1.0, 0.8, 0.8, 0.6)
 
 # target plate
 mapdl.real(1)
-mapdl.n(100001, -0.75, -0.75, 0.6)
-mapdl.n(100002, 0.75, -0.75, 0.6)
-mapdl.n(100003, 0.75, 0.75, 0.6)
-mapdl.n(100004, -0.75, 0.75, 0.6)
+mapdl.n(100001, -1, -1, 0.5001)
+mapdl.n(100002, 1, -1, 0.5001)
+mapdl.n(100003, 1, 1, 0.5001)
+mapdl.n(100004, -1, 1, 0.5001)
 mapdl.et(2, 170)
 mapdl.type(2)
 mapdl.tshap("QUAD")
@@ -151,16 +152,18 @@ mapdl.allsel()
 mapdl.asel("S", vmin=1)
 mapdl.nsla("S", 1)
 mapdl.dsym("SYMM", "Z")
+mapdl.d("ALL", "UX", 0)
+mapdl.d("ALL", "UY", 0)
 mapdl.allsel()
-mapdl.d(88, "UX", 0)
-mapdl.d(88, "UY", 0)
-mapdl.d(55, "UY", 0)
+#mapdl.d(88, "UX", 0)
+#mapdl.d(88, "UY", 0)
+#mapdl.d(55, "UY", 0)
 
 # constraints target
 mapdl.nsel("S", "NODE", vmin=100001, vmax=100004)
 mapdl.d("ALL", "UX", 0)
 mapdl.d("ALL", "UY", 0)
-mapdl.d("ALL", "UZ", -0.31)  # 0.1 gap
+mapdl.d("ALL", "UZ", -0.3001)  # 0.1 gap
 mapdl.allsel()
 
 # keyopts
